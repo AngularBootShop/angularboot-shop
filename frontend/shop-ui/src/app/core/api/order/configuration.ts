@@ -151,6 +151,9 @@ constructor({ accessToken, apiKeys, basePath, credentials, encodeParam, encoder,
      * @return True if the given MIME is JSON, false otherwise.
      */
     public isJsonMime(mime: string): boolean {
+        if (mime === '*/*') {
+            return true;
+        }
         const jsonMime: RegExp = /^(application\/json|[^;/ \t]+\/[^;/ \t]+[+]json)[ \t]*(;.*)?$/i;
         return mime !== null && jsonMime.test(mime);
     }
