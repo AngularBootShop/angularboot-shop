@@ -38,12 +38,13 @@ public class ProductServiceImpl implements ProductService {
         minPrice,
         maxPrice,
         pageable);
-    Page<Product> page =
-        productRepository.searchProducts(
-            (query != null && !query.isBlank()) ? query.trim() : null,
-            minPrice,
-            maxPrice,
-            pageable);
+    String cleanQuery = (query != null && !query.isBlank()) ? query.trim() : null;
+    Page<Product> page;
+    if (cleanQuery == null && minPrice == null && maxPrice == null) {
+      page = productRepository.findAll(pageable);
+    } else {
+      page = productRepository.searchProducts(cleanQuery, minPrice, maxPrice, pageable);
+    }
     return PagedResponse.from(page.map(productMapper::toResponse));
   }
 

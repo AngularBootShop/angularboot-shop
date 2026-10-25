@@ -22,9 +22,9 @@ public interface ProductRepository
 
   @Query(
       "SELECT p FROM Product p WHERE "
-          + "(:query IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :query, '%'))) AND "
-          + "(:minPrice IS NULL OR p.price >= :minPrice) AND "
-          + "(:maxPrice IS NULL OR p.price <= :maxPrice)")
+          + "(CAST(:query AS string) IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) OR LOWER(p.sku) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))) AND "
+          + "(CAST(:minPrice AS big_decimal) IS NULL OR p.price >= :minPrice) AND "
+          + "(CAST(:maxPrice AS big_decimal) IS NULL OR p.price <= :maxPrice)")
   Page<Product> searchProducts(
       @Param("query") String query,
       @Param("minPrice") java.math.BigDecimal minPrice,

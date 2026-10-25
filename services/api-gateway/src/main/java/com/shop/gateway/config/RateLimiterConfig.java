@@ -1,7 +1,6 @@
 package com.shop.gateway.config;
 
 import java.net.InetSocketAddress;
-import java.security.Principal;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.context.annotation.Bean;
@@ -18,7 +17,14 @@ public class RateLimiterConfig {
     return exchange ->
         exchange
             .getPrincipal()
-            .map(Principal::getName)
+            .flatMap(
+                p -> {
+                  String name = p != null ? p.getName() : null;
+                  if (name != null && !name.isBlank()) {
+                    return Mono.just(name);
+                  }
+                  return Mono.empty();
+                })
             .switchIfEmpty(
                 Mono.defer(
                     () -> {

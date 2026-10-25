@@ -32,8 +32,8 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 public class SecurityConfig {
 
   @Value(
-      "${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:8180/realms/shop-realm}")
-  private String issuerUri;
+      "${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:http://localhost:8180/realms/shop-realm/protocol/openid-connect/certs}")
+  private String jwkSetUri;
 
   @Value("${app.security.expected-audience:shop-api}")
   private String expectedAudience;
@@ -87,12 +87,16 @@ public class SecurityConfig {
   @Bean
   @ConditionalOnMissingBean(JwtDecoder.class)
   public JwtDecoder jwtDecoder() {
-    NimbusJwtDecoder jwtDecoder = JwtDecoders.fromIssuerLocation(issuerUri);
+    NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
 
-    OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuerUri);
+    OAuth2TokenValidator<Jwt> timestampValidator = new JwtTimestampValidator();
+    OAuth2TokenValidator<Jwt> issuerValidator =
+        new JwtClaimValidator<String>(
+            "iss", iss -> iss != null && iss.endsWith("/realms/shop-realm"));
     OAuth2TokenValidator<Jwt> audienceValidator = new AudienceValidator(expectedAudience);
     OAuth2TokenValidator<Jwt> combinedValidator =
-        new DelegatingOAuth2TokenValidator<>(withIssuer, audienceValidator);
+        new DelegatingOAuth2TokenValidator<>(
+            timestampValidator, issuerValidator, audienceValidator);
 
     jwtDecoder.setJwtValidator(combinedValidator);
     return jwtDecoder;

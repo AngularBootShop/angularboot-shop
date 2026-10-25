@@ -1,10 +1,8 @@
 package com.shop.gateway.config;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -20,7 +18,7 @@ import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimValidator;
-import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -78,13 +76,17 @@ public class SecurityConfig {
   public ReactiveJwtDecoder reactiveJwtDecoder() {
     NimbusReactiveJwtDecoder jwtDecoder = NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build();
 
-    OAuth2TokenValidator<Jwt> defaultValidator = JwtValidators.createDefaultWithIssuer(issuerUri);
+    OAuth2TokenValidator<Jwt> timestampValidator = new JwtTimestampValidator();
+    OAuth2TokenValidator<Jwt> issuerValidator =
+        new JwtClaimValidator<String>(
+            "iss", iss -> iss != null && iss.endsWith("/realms/shop-realm"));
     OAuth2TokenValidator<Jwt> audienceValidator =
         new JwtClaimValidator<List<String>>(
             "aud", aud -> aud != null && (aud.contains("shop-api") || aud.contains("account")));
 
     jwtDecoder.setJwtValidator(
-        new DelegatingOAuth2TokenValidator<>(defaultValidator, audienceValidator));
+        new DelegatingOAuth2TokenValidator<>(
+            timestampValidator, issuerValidator, audienceValidator));
     return jwtDecoder;
   }
 
@@ -102,21 +104,36 @@ public class SecurityConfig {
       String principalClaimName =
           jwt.getClaimAsString("preferred_username") != null
               ? jwt.getClaimAsString("preferred_username")
-              : jwt.getSubject();
+              : (jwt.getSubject() != null ? jwt.getSubject() : "shop-user");
       return Mono.just(new JwtAuthenticationToken(jwt, authorities, principalClaimName));
     }
 
     @SuppressWarnings("unchecked")
     private Collection<GrantedAuthority> extractRealmRoles(Jwt jwt) {
+      java.util.List<GrantedAuthority> authorities = new java.util.ArrayList<>();
+
+      // 1. Extract from realm_access.roles
       Map<String, Object> realmAccess = jwt.getClaim("realm_access");
-      if (realmAccess == null || !realmAccess.containsKey("roles")) {
-        return Collections.emptyList();
+      if (realmAccess != null && realmAccess.containsKey("roles")) {
+        Collection<String> roles = (Collection<String>) realmAccess.get("roles");
+        roles.forEach(
+            role -> {
+              String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role.toUpperCase();
+              authorities.add(new SimpleGrantedAuthority(authority));
+            });
       }
 
-      Collection<String> roles = (Collection<String>) realmAccess.get("roles");
-      return roles.stream()
-          .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
-          .collect(Collectors.toList());
+      // 2. Extract from direct "roles" claim if present
+      List<String> directRoles = jwt.getClaimAsStringList("roles");
+      if (directRoles != null) {
+        directRoles.forEach(
+            role -> {
+              String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role.toUpperCase();
+              authorities.add(new SimpleGrantedAuthority(authority));
+            });
+      }
+
+      return authorities;
     }
   }
 }

@@ -64,6 +64,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: shop-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--stop-writes-on-bgsave-error", "no"]
+    tmpfs:
+      - /data:mode=1777,size=64M
     ports:
       - "6379:6379"
     healthcheck:
@@ -80,7 +83,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.1.0
     container_name: shop-keycloak
-    command: start-dev --import-realm
+    command: start-dev
     environment:
       KC_DB: postgres
       KC_DB_URL_HOST: postgres-keycloak
@@ -94,18 +97,21 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
     volumes:
-      - ../keycloak/shop-realm.json:/opt/keycloak/data/import/shop-realm.json:ro
+      - ../keycloak/shop-realm.json:/opt/keycloak/shop-realm.json:ro
+    tmpfs:
+      - /tmp:mode=1777,size=256M
+      - /opt/keycloak/data/transaction-logs:mode=1777,size=128M
     ports:
       - "8180:8180"
     depends_on:
       postgres-keycloak:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8180 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8180 && echo -e 'GET /realms/master HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 15s
     networks:
       - shop-network
 
@@ -132,6 +138,8 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    tmpfs:
+      - /prometheus:mode=1777,size=256M
     ports:
       - "9090:9090"
     networks:
@@ -143,6 +151,8 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
       - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+    tmpfs:
+      - /tmp:mode=1777,size=256M
     ports:
       - "3100:3100"
     networks:
@@ -169,6 +179,8 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    tmpfs:
+      - /var/lib/grafana:mode=1777,size=128M
     ports:
       - "3000:3000"
     depends_on:
@@ -196,6 +208,8 @@ services:
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
     ports:
       - "8081:8081"
+    tmpfs:
+      - /tmp:mode=1777,size=128M
     depends_on:
       postgres-catalog:
         condition: service_healthy
@@ -225,12 +239,14 @@ services:
       CATALOG_SERVICE_URL: http://catalog-service:8081
       KEYCLOAK_TOKEN_URI: http://keycloak:8180/realms/shop-realm/protocol/openid-connect/token
       KEYCLOAK_CLIENT_ID: order-service-client
-      KEYCLOAK_CLIENT_SECRET: order-service-secret
+      KEYCLOAK_CLIENT_SECRET: order-client-super-secret
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8180/realms/shop-realm
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8180/realms/shop-realm/protocol/openid-connect/certs
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
     ports:
       - "8082:8082"
+    tmpfs:
+      - /tmp:mode=1777,size=128M
     depends_on:
       postgres-order:
         condition: service_healthy
@@ -265,6 +281,8 @@ services:
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
     ports:
       - "8080:8080"
+    tmpfs:
+      - /tmp:mode=1777,size=128M
     depends_on:
       redis:
         condition: service_healthy
@@ -293,6 +311,8 @@ services:
     container_name: shop-ui
     ports:
       - "4200:4200"
+    tmpfs:
+      - /tmp:mode=1777,size=64M
     depends_on:
       api-gateway:
         condition: service_healthy
@@ -312,5 +332,20 @@ networks:
 
 volumes:
   pg-catalog-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/krish/Projects/github/angplusboot/shop/.data/pg-catalog
   pg-order-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/krish/Projects/github/angplusboot/shop/.data/pg-order
   pg-keycloak-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/krish/Projects/github/angplusboot/shop/.data/pg-keycloak

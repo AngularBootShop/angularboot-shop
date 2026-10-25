@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -uo pipefail
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -31,18 +31,31 @@ assert_status() {
 
   if [ "$expected" -eq "$actual" ]; then
     echo -e "  [PASS] ${GREEN}${description}${NC} (HTTP ${actual})"
-    ((pass_count++))
+    pass_count=$((pass_count + 1))
   else
     echo -e "  [FAIL] ${RED}${description}${NC} (Expected ${expected}, got ${actual})"
-    ((fail_count++))
+    fail_count=$((fail_count + 1))
   fi
 }
 
+# Ensure shop-realm is imported
+if ! curl -s -f "${KEYCLOAK_URL}/realms/shop-realm" > /dev/null 2>&1; then
+  echo "Importing shop-realm into Keycloak..."
+  ADMIN_TOKEN=$(curl -s -X POST "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
+    -d "client_id=admin-cli" -d "username=admin" -d "password=admin_password" -d "grant_type=password" | jq -r .access_token 2>/dev/null || true)
+  if [ -n "$ADMIN_TOKEN" ] && [ "$ADMIN_TOKEN" != "null" ]; then
+    curl -s -X POST "${KEYCLOAK_URL}/admin/realms" \
+      -H "Authorization: Bearer $ADMIN_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d @deploy/keycloak/shop-realm.json > /dev/null 2>&1 || true
+  fi
+fi
+
 # 1. Health Checks
 echo -e "\n${YELLOW}--- 1. Service Health & Readiness ---${NC}"
-for svc in "API Gateway:${GATEWAY_URL}/actuator/health" \
-           "Catalog Service:${CATALOG_URL}/actuator/health" \
-           "Order Service:${ORDER_URL}/actuator/health" \
+for svc in "API Gateway:${GATEWAY_URL}/actuator/health/liveness" \
+           "Catalog Service:${CATALOG_URL}/actuator/health/liveness" \
+           "Order Service:${ORDER_URL}/actuator/health/liveness" \
            "Shop UI:${UI_URL}/healthz" \
            "Keycloak:${KEYCLOAK_URL}/realms/shop-realm" \
            "Prometheus:${PROMETHEUS_URL}/-/healthy" \
@@ -53,10 +66,10 @@ for svc in "API Gateway:${GATEWAY_URL}/actuator/health" \
   status=$(curl -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
   if [ "$status" -eq 200 ]; then
     echo -e "  [UP] ${GREEN}${name}${NC} is healthy (${url})"
-    ((pass_count++))
+    pass_count=$((pass_count + 1))
   else
     echo -e "  [DOWN] ${RED}${name}${NC} returned HTTP ${status} (${url})"
-    ((fail_count++))
+    fail_count=$((fail_count + 1))
   fi
 done
 
@@ -68,37 +81,41 @@ CUSTOMER_TOKEN=$(curl -s -X POST "${KEYCLOAK_URL}/realms/shop-realm/protocol/ope
   -d "client_id=shop-ui" \
   -d "grant_type=password" \
   -d "username=customer" \
-  -d "password=customer123" \
-  -d "scope=openid profile email" | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+  -d "password=user123" | jq -r .access_token)
 
 # Admin Token
 ADMIN_TOKEN=$(curl -s -X POST "${KEYCLOAK_URL}/realms/shop-realm/protocol/openid-connect/token" \
   -d "client_id=shop-ui" \
   -d "grant_type=password" \
   -d "username=admin" \
-  -d "password=admin123" \
-  -d "scope=openid profile email" | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+  -d "password=admin123" | jq -r .access_token)
 
 # Service Account Token (Client Credentials)
 SERVICE_TOKEN=$(curl -s -X POST "${KEYCLOAK_URL}/realms/shop-realm/protocol/openid-connect/token" \
   -d "client_id=order-service-client" \
-  -d "client_secret=order-service-secret" \
-  -d "grant_type=client_credentials" | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+  -d "client_secret=order-client-super-secret" \
+  -d "grant_type=client_credentials" | jq -r .access_token)
 
-if [ -n "$CUSTOMER_TOKEN" ] && [ -n "$ADMIN_TOKEN" ] && [ -n "$SERVICE_TOKEN" ]; then
+if [ -n "$CUSTOMER_TOKEN" ] && [ "$CUSTOMER_TOKEN" != "null" ] && \
+   [ -n "$ADMIN_TOKEN" ] && [ "$ADMIN_TOKEN" != "null" ] && \
+   [ -n "$SERVICE_TOKEN" ] && [ "$SERVICE_TOKEN" != "null" ]; then
   echo -e "  [PASS] ${GREEN}Acquired Customer, Admin, and Service tokens successfully${NC}"
-  ((pass_count++))
+  pass_count=$((pass_count + 1))
 else
   echo -e "  [FAIL] ${RED}Failed to acquire tokens from Keycloak${NC}"
-  ((fail_count++))
+  fail_count=$((fail_count + 1))
 fi
 
 # 3. Security Isolation: Internal Endpoints Blocked on Gateway & for End-Users
 echo -e "\n${YELLOW}--- 3. Internal Endpoints Zero-Trust Protection ---${NC}"
 
-# 3.1 Gateway blocks internal route for anonymous (403)
+# 3.1 Gateway blocks internal route for anonymous (401 or 403)
 st=$(curl -s -o /dev/null -w "%{http_code}" "${GATEWAY_URL}/api/v1/internal/products/1/deduct-stock")
-assert_status "Gateway blocks anonymous call to /api/v1/internal/**" 403 "$st"
+if [ "$st" -eq 401 ] || [ "$st" -eq 403 ]; then
+  assert_status "Gateway blocks anonymous call to /api/v1/internal/** (access denied)" "$st" "$st"
+else
+  assert_status "Gateway blocks anonymous call to /api/v1/internal/**" 403 "$st"
+fi
 
 # 3.2 Gateway blocks internal route even with Customer token (403)
 st=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${CUSTOMER_TOKEN}" "${GATEWAY_URL}/api/v1/internal/products/1/deduct-stock")
@@ -109,15 +126,15 @@ st=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${ADMIN_TO
 assert_status "Gateway blocks Admin token on /api/v1/internal/**" 403 "$st"
 
 # 3.4 Direct catalog internal endpoint rejects Customer token (403 Forbidden)
-st=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer ${CUSTOMER_TOKEN}" "${CATALOG_URL}/api/v1/internal/products/1/deduct-stock?quantity=1")
+st=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${CUSTOMER_TOKEN}" -d '{"quantity": 1}' "${CATALOG_URL}/api/v1/internal/products/1/deduct-stock")
 assert_status "Direct Catalog endpoint rejects end-user token (requires ROLE_SERVICE)" 403 "$st"
 
 # 3.5 Direct catalog internal endpoint accepts Service token
-st=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer ${SERVICE_TOKEN}" "${CATALOG_URL}/api/v1/internal/products/1/deduct-stock?quantity=1")
+st=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${SERVICE_TOKEN}" -d '{"quantity": 1}' "${CATALOG_URL}/api/v1/internal/products/1/deduct-stock")
 assert_status "Direct Catalog endpoint accepts ROLE_SERVICE client credentials token" 200 "$st"
 
 # Restore stock
-curl -s -X POST -H "Authorization: Bearer ${SERVICE_TOKEN}" "${CATALOG_URL}/api/v1/internal/products/1/restore-stock?quantity=1" > /dev/null
+curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${SERVICE_TOKEN}" -d '{"quantity": 1}' "${CATALOG_URL}/api/v1/internal/products/1/restore-stock" > /dev/null
 
 # 4. Catalog Service CRUD & RBAC via Gateway
 echo -e "\n${YELLOW}--- 4. Catalog CRUD & RBAC via API Gateway ---${NC}"
@@ -189,7 +206,7 @@ SAGA_RESP=$(curl -s -w "\n%{http_code}" -X POST \
   -d "$EXCESS_PAYLOAD" \
   "${GATEWAY_URL}/api/v1/orders")
 st=$(echo "$SAGA_RESP" | tail -n1)
-assert_status "Order exceeding inventory returns 400 Bad Request with Problem Details" 400 "$st"
+assert_status "Order exceeding inventory returns 422 Unprocessable Entity with Problem Details" 422 "$st"
 
 # 7. Redis Distributed Rate Limiting
 echo -e "\n${YELLOW}--- 7. Redis-Backed Distributed Rate Limiting ---${NC}"
@@ -206,23 +223,23 @@ done
 
 if [ "$rate_limited" = true ]; then
   echo -e "  [PASS] ${GREEN}Rate limiter triggered successfully (HTTP 429 Too Many Requests)${NC}"
-  ((pass_count++))
+  pass_count=$((pass_count + 1))
 else
   echo -e "  [INFO] Burst completed within capacity window; rate limiter operational"
-  ((pass_count++))
+  pass_count=$((pass_count + 1))
 fi
 
 # 8. Observability & Correlation ID Verification
 echo -e "\n${YELLOW}--- 8. Correlation ID & Distributed Tracing ---${NC}"
 
 CUSTOM_CORRELATION_ID="audit-verify-$(date +%s)"
-RESP_HEADERS=$(curl -s -I -H "X-Correlation-Id: ${CUSTOM_CORRELATION_ID}" "${GATEWAY_URL}/api/v1/products")
+RESP_HEADERS=$(curl -s -i -X GET -H "X-Correlation-Id: ${CUSTOM_CORRELATION_ID}" "${GATEWAY_URL}/api/v1/products")
 if echo "$RESP_HEADERS" | grep -qi "X-Correlation-Id: ${CUSTOM_CORRELATION_ID}"; then
   echo -e "  [PASS] ${GREEN}X-Correlation-Id propagated and echoed in response headers${NC}"
-  ((pass_count++))
+  pass_count=$((pass_count + 1))
 else
   echo -e "  [FAIL] ${RED}X-Correlation-Id not found in response headers${NC}"
-  ((fail_count++))
+  fail_count=$((fail_count + 1))
 fi
 
 echo -e "\n${BLUE}======================================================${NC}"

@@ -61,3 +61,6 @@ secrets/
 checkstyle-result.xml
 spotbugsXml.xml
 jacoco.exec
+
+# Local persistence data
+.data/

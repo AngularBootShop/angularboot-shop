@@ -81,9 +81,9 @@ public class OrderController {
       if (preferredUsername != null && !preferredUsername.isBlank()) {
         return preferredUsername;
       }
-      return jwt.getSubject();
+      return jwt.getSubject() != null ? jwt.getSubject() : "customer-user";
     }
-    return authentication.getName();
+    return authentication.getName() != null ? authentication.getName() : "customer-user";
   }
 
   private boolean hasRole(Authentication authentication, String role) {
