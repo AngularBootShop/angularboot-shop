@@ -1,0 +1,132 @@
+<div class="container page-content animate-fade-in">
+  <div class="page-header">
+    <h1 class="page-title">Shopping Cart</h1>
+    <p class="page-subtitle">Review items and place your order</p>
+  </div>
+
+  <!-- Success Order Confirmation Banner -->
+  @if (confirmedOrder()) {
+    <div class="confirmation-card glass-panel">
+      <div class="confirmation-icon">✓</div>
+      <div class="confirmation-details">
+        <h2 class="confirmation-title">Order Placed Successfully!</h2>
+        <p class="confirmation-text">
+          Order Number: <strong class="order-number">{{ confirmedOrder()?.orderNumber }}</strong>
+        </p>
+        <p class="confirmation-sub">
+          Status: <span class="badge badge-emerald">{{ confirmedOrder()?.status }}</span> | Total: &#36;{{ confirmedOrder()?.totalAmount | number:'1.2-2' }}
+        </p>
+      </div>
+      <div class="confirmation-actions">
+        <a routerLink="/orders" class="btn btn-primary">View in Orders</a>
+        <a routerLink="/products" class="btn btn-secondary">Continue Shopping</a>
+      </div>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="error-banner">
+      <span>⚠️ {{ error() }}</span>
+    </div>
+  }
+
+  @if (!confirmedOrder()) {
+    @if (cartService.items().length > 0) {
+      <div class="cart-layout">
+        <!-- Items Table/List -->
+        <div class="cart-items-card glass-panel">
+          <div class="items-header">
+            <span>Product</span>
+            <span>Quantity</span>
+            <span>Subtotal</span>
+          </div>
+
+          @for (item of cartService.items(); track item.productId) {
+            <div class="cart-item">
+              <div class="item-info">
+                <span class="item-name">{{ item.name }}</span>
+                <span class="item-sku">{{ item.sku }}</span>
+                <span class="item-price">&#36;{{ item.price | number:'1.2-2' }} each</span>
+              </div>
+
+              <div class="item-quantity">
+                <button
+                  (click)="cartService.decrementItem(item.productId)"
+                  class="qty-btn"
+                  aria-label="Decrease quantity"
+                >
+                  -
+                </button>
+                <span class="qty-count">{{ item.quantity }}</span>
+                <button
+                  (click)="cartService.addItem(item)"
+                  [disabled]="item.quantity >= item.stock"
+                  class="qty-btn"
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
+              </div>
+
+              <div class="item-total">
+                <span class="total-price">&#36;{{ (item.price * item.quantity) | number:'1.2-2' }}</span>
+                <button
+                  (click)="cartService.removeItem(item.productId)"
+                  class="remove-btn"
+                  aria-label="Remove item"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Order Summary Sidebar -->
+        <div class="cart-summary-card glass-panel">
+          <h2 class="summary-title">Order Summary</h2>
+
+          <div class="summary-row">
+            <span class="summary-label">Items ({{ cartService.totalItems() }}):</span>
+            <span class="summary-val">&#36;{{ cartService.totalPrice() | number:'1.2-2' }}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Shipping:</span>
+            <span class="summary-val free-shipping">FREE</span>
+          </div>
+          <div class="summary-divider"></div>
+          <div class="summary-row total-row">
+            <span class="total-label">Total Amount:</span>
+            <span class="total-val">&#36;{{ cartService.totalPrice() | number:'1.2-2' }}</span>
+          </div>
+
+          <div class="checkout-actions">
+            @if (authService.isAuthenticated()) {
+              <button
+                (click)="checkout()"
+                [disabled]="placingOrder()"
+                class="btn btn-primary btn-full checkout-btn"
+              >
+                {{ placingOrder() ? 'Processing Saga Order...' : 'Place Order (Idempotent)' }}
+              </button>
+            } @else {
+              <button
+                (click)="authService.login()"
+                class="btn btn-primary btn-full"
+              >
+                Sign In to Checkout
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="state-container glass-panel">
+        <span class="empty-icon">🛒</span>
+        <p class="empty-title">Your shopping cart is empty</p>
+        <p class="empty-subtitle">Explore our catalog and find the products you need</p>
+        <a routerLink="/products" class="btn btn-primary mt-4">Browse Catalog</a>
+      </div>
+    }
+  }
+</div>

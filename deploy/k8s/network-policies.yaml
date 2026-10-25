@@ -1,0 +1,129 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: shop
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Allow DNS resolution from all pods in namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: shop
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# API Gateway: Ingress from ingress controller; egress to catalog, order, redis, keycloak, jaeger
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-netpol
+  namespace: shop
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: api-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: catalog-service
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: order-service
+        - podSelector:
+              app: redis
+        - podSelector:
+              app: keycloak
+        - podSelector:
+              app: jaeger
+---
+# Catalog Service: Ingress from api-gateway (catalog) and order-service (internal stock operations)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: catalog-service-netpol
+  namespace: shop
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: catalog-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: order-service
+      ports:
+        - protocol: TCP
+          port: 8081
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres-catalog
+        - podSelector:
+              app: keycloak
+        - podSelector:
+              app: jaeger
+---
+# Order Service: Ingress from api-gateway only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: order-service-netpol
+  namespace: shop
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: order-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8082
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: catalog-service
+        - podSelector:
+            matchLabels:
+              app: postgres-order
+        - podSelector:
+              app: keycloak
+        - podSelector:
+              app: jaeger

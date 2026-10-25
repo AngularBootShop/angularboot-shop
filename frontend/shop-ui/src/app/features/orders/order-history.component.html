@@ -1,0 +1,113 @@
+<div class="container page-content animate-fade-in">
+  <div class="page-header">
+    <h1 class="page-title">Order History</h1>
+    <p class="page-subtitle">Track your recent orders and saga compensation history</p>
+  </div>
+
+  @if (!authService.isAuthenticated()) {
+    <div class="state-card glass-panel">
+      <span class="state-icon">🔒</span>
+      <h2>Authentication Required</h2>
+      <p>Please sign in with Keycloak to view your order history.</p>
+      <button (click)="authService.login()" class="btn btn-primary mt-4">
+        Sign In with Keycloak
+      </button>
+    </div>
+  } @else {
+    <!-- State: Loading -->
+    @if (loading()) {
+      <div class="state-container">
+        <div class="spinner"></div>
+        <p>Retrieving orders from Order Service...</p>
+      </div>
+    }
+
+    <!-- State: Error -->
+    @if (error()) {
+      <div class="error-banner">
+        <span>⚠️ {{ error() }}</span>
+        <button (click)="loadOrders()" class="btn btn-secondary btn-sm">Retry</button>
+      </div>
+    }
+
+    <!-- State: Order List -->
+    @if (!loading() && orders().length > 0) {
+      <div class="orders-list">
+        @for (order of orders(); track order.id) {
+          <div class="order-card glass-panel">
+            <div class="order-card-header">
+              <div class="order-meta">
+                <span class="order-number">{{ order.orderNumber }}</span>
+                <span class="order-date">{{ order.createdAt | date:'medium' }}</span>
+              </div>
+
+              <div class="order-status-badge">
+                @if (order.status === 'CONFIRMED') {
+                  <span class="badge badge-emerald">CONFIRMED</span>
+                } @else if (order.status === 'CANCELLED') {
+                  <span class="badge badge-rose">CANCELLED (SAGA COMPENSATED)</span>
+                } @else {
+                  <span class="badge badge-amber">{{ order.status }}</span>
+                }
+              </div>
+            </div>
+
+            <div class="order-items-table">
+              <div class="item-table-header">
+                <span>Product Name</span>
+                <span>Quantity</span>
+                <span>Unit Price</span>
+                <span>Subtotal</span>
+              </div>
+
+              @for (item of order.items; track item.id) {
+                <div class="item-table-row">
+                  <span class="product-id-tag">{{ item.productName || ('#' + item.productId) }}</span>
+                  <span>{{ item.quantity }}</span>
+                  <span>&#36;{{ item.unitPrice | number:'1.2-2' }}</span>
+                  <span class="item-subtotal">&#36;{{ item.subtotal | number:'1.2-2' }}</span>
+                </div>
+              }
+            </div>
+
+            <div class="order-card-footer">
+              <span class="total-label">Total Amount:</span>
+              <span class="total-val">&#36;{{ order.totalAmount | number:'1.2-2' }}</span>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Pagination -->
+      @if (totalPages() > 1) {
+        <div class="pagination">
+          <button
+            (click)="changePage(currentPage() - 1)"
+            [disabled]="currentPage() === 0"
+            class="btn btn-secondary btn-sm"
+          >
+            Previous
+          </button>
+          <span class="page-indicator">Page {{ currentPage() + 1 }} of {{ totalPages() }}</span>
+          <button
+            (click)="changePage(currentPage() + 1)"
+            [disabled]="currentPage() >= totalPages() - 1"
+            class="btn btn-secondary btn-sm"
+          >
+            Next
+          </button>
+        </div>
+      }
+    }
+
+    <!-- State: Empty -->
+    @if (!loading() && orders().length === 0 && !error()) {
+      <div class="state-card glass-panel">
+        <span class="state-icon">📦</span>
+        <h2>No Orders Found</h2>
+        <p>You haven't placed any orders yet.</p>
+        <a routerLink="/products" class="btn btn-primary mt-4">Start Shopping</a>
+      </div>
+    }
+  }
+</div>

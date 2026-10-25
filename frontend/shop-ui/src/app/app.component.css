@@ -1,0 +1,25 @@
+.main-content {
+  min-height: calc(100vh - 140px);
+}
+
+.footer {
+  border-top: 1px solid var(--border-subtle);
+  padding: 1.5rem 0;
+  background: var(--bg-primary);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.footer-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

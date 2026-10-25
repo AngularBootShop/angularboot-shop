@@ -1,0 +1,167 @@
+.page-content {
+  padding: 2.5rem 1.5rem;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.page-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin-top: 0.25rem;
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.order-card {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.order-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.order-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.order-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.order-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.order-items-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.item-table-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding-bottom: 0.5rem;
+}
+
+.item-table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  padding: 0.4rem 0;
+}
+
+.product-id-tag {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary);
+}
+
+.item-subtotal {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.order-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.total-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.total-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.state-card {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.state-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.mt-4 {
+  margin-top: 1.5rem;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+
+.page-indicator {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-banner {
+  background: var(--rose-bg);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  color: var(--rose);
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}

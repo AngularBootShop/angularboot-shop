@@ -1,0 +1,109 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/shop-realm}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/shop-realm/protocol/openid-connect/certs}
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+      routes:
+        # Explicit block for internal service-to-service endpoints
+        - id: block_internal
+          uri: no://op
+          predicates:
+            - Path=/api/v1/internal/**
+          filters:
+            - SetStatus=403
+
+        # Catalog Service Route
+        - id: catalog-service
+          uri: ${CATALOG_SERVICE_URI:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/products/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@userOrIpKeyResolver}"
+
+        # Order Service Route
+        - id: order-service
+          uri: ${ORDER_SERVICE_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/orders/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@userOrIpKeyResolver}"
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:4200"
+              - "http://localhost:80"
+              - "http://localhost"
+              - "http://127.0.0.1:4200"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders: "*"
+            exposedHeaders:
+              - Authorization
+              - Idempotency-Key
+              - X-Correlation-Id
+              - Link
+              - X-Total-Count
+            allowCredentials: true
+            maxAge: 3600
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus, gateway
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+    gateway:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"

@@ -1,0 +1,144 @@
+<div class="container page-content animate-fade-in">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Catalog</h1>
+      <p class="page-subtitle">Browse available items and add them to your cart</p>
+    </div>
+    @if (authService.isAdmin()) {
+      <a routerLink="/admin/products/new" class="btn btn-primary">
+        <span>+</span> Add Product
+      </a>
+    }
+  </div>
+
+  <!-- Search & Filter Controls -->
+  <div class="filters-card glass-panel">
+    <div class="search-group">
+      <input
+        type="text"
+        class="input-control"
+        placeholder="Search by name, SKU or description..."
+        [(ngModel)]="searchKeyword"
+        (keyup.enter)="applyFilters()"
+      />
+    </div>
+    <div class="price-group">
+      <input
+        type="number"
+        class="input-control input-sm"
+        placeholder="Min Price"
+        [(ngModel)]="searchMinPrice"
+      />
+      <span class="range-separator">-</span>
+      <input
+        type="number"
+        class="input-control input-sm"
+        placeholder="Max Price"
+        [(ngModel)]="searchMaxPrice"
+      />
+    </div>
+    <div class="stock-toggle">
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="searchInStockOnly" (change)="applyFilters()" />
+        <span>In Stock Only</span>
+      </label>
+    </div>
+    <button (click)="applyFilters()" class="btn btn-secondary btn-filter">
+      Filter
+    </button>
+  </div>
+
+  <!-- State: Loading -->
+  @if (loading()) {
+    <div class="state-container">
+      <div class="spinner"></div>
+      <p>Loading products from catalog...</p>
+    </div>
+  }
+
+  <!-- State: Error -->
+  @if (error()) {
+    <div class="error-banner">
+      <span>⚠️ {{ error() }}</span>
+      <button (click)="loadProducts()" class="btn btn-secondary btn-sm">Retry</button>
+    </div>
+  }
+
+  <!-- State: Product Grid -->
+  @if (!loading() && products().length > 0) {
+    <div class="product-grid">
+      @for (product of products(); track product.id) {
+        <div class="product-card glass-panel">
+          <div class="card-header">
+            <span class="sku-tag">{{ product.sku }}</span>
+            @if (product.stock === 0) {
+              <span class="badge badge-rose">Out of Stock</span>
+            } @else if (product.stock !== undefined && product.stock <= 5) {
+              <span class="badge badge-amber">Low Stock ({{ product.stock }})</span>
+            } @else {
+              <span class="badge badge-emerald">In Stock ({{ product.stock }})</span>
+            }
+          </div>
+
+          <div class="card-body">
+            <h2 class="product-name">{{ product.name }}</h2>
+            <p class="product-desc">{{ product.description || 'No description provided.' }}</p>
+            <div class="product-pricing">
+              <span class="price-symbol">$</span>
+              <span class="price-value">{{ product.price | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <button
+              (click)="addToCart(product)"
+              [disabled]="product.stock === 0"
+              class="btn btn-primary btn-full"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+              Add to Cart
+            </button>
+
+            @if (authService.isAdmin() && product.id) {
+              <div class="admin-actions">
+                <a [routerLink]="['/admin/products', product.id]" class="btn btn-secondary btn-sm">Edit</a>
+                <button (click)="deleteProduct(product.id!)" class="btn btn-danger btn-sm">Delete</button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Pagination -->
+    @if (totalPages() > 1) {
+      <div class="pagination">
+        <button
+          (click)="changePage(currentPage() - 1)"
+          [disabled]="currentPage() === 0"
+          class="btn btn-secondary btn-sm"
+        >
+          Previous
+        </button>
+        <span class="page-indicator">Page {{ currentPage() + 1 }} of {{ totalPages() }}</span>
+        <button
+          (click)="changePage(currentPage() + 1)"
+          [disabled]="currentPage() >= totalPages() - 1"
+          class="btn btn-secondary btn-sm"
+        >
+          Next
+        </button>
+      </div>
+    }
+  }
+
+  <!-- State: Empty -->
+  @if (!loading() && products().length === 0 && !error()) {
+    <div class="state-container">
+      <p class="empty-title">No products found</p>
+      <p class="empty-subtitle">Try adjusting your filters or search terms</p>
+    </div>
+  }
+</div>

@@ -1,0 +1,62 @@
+name: Semantic Release on Tag
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Create GitHub Release & Artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build All Microservices
+        run: mvn package -DskipTests
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build Frontend SPA
+        run: |
+          cd frontend/shop-ui
+          npm ci
+          npm run build
+
+      - name: Create Release Tarball
+        run: |
+          mkdir -p release-dist
+          cp services/catalog-service/target/*.jar release-dist/catalog-service.jar
+          cp services/order-service/target/*.jar release-dist/order-service.jar
+          cp services/api-gateway/target/*.jar release-dist/api-gateway.jar
+          tar -czf release-dist/shop-ui-dist.tar.gz -C frontend/shop-ui/dist/shop-ui/browser .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-dist/catalog-service.jar
+            release-dist/order-service.jar
+            release-dist/api-gateway.jar
+            release-dist/shop-ui-dist.tar.gz
+          generate_release_notes: true
+          draft: false
+          prerelease: false

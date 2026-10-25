@@ -1,0 +1,151 @@
+{
+  "id": "shop-realm",
+  "realm": "shop-realm",
+  "enabled": true,
+  "displayName": "Shop Microservices Realm",
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 7200,
+  "sslRequired": "external",
+  "roles": {
+    "realm": [
+      {
+        "name": "ROLE_ADMIN",
+        "description": "Administrator role with full catalog and order privileges"
+      },
+      {
+        "name": "ROLE_USER",
+        "description": "Regular user role for browsing products and placing orders"
+      },
+      {
+        "name": "ROLE_SERVICE",
+        "description": "Internal microservice service-to-service role"
+      }
+    ]
+  },
+  "defaultDefaultClientScopes": [
+    "role_list",
+    "profile",
+    "email",
+    "web-origins"
+  ],
+  "clientScopes": [
+    {
+      "name": "shop-api-audience",
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "shop-api-aud-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "shop-api",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "shop-ui",
+      "name": "Shop Angular Frontend",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:4200/*##http://localhost/*"
+      },
+      "redirectUris": [
+        "http://localhost:4200/*",
+        "http://localhost/*",
+        "http://127.0.0.1:4200/*",
+        "http://127.0.0.1/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200",
+        "http://localhost",
+        "http://127.0.0.1:4200",
+        "http://127.0.0.1",
+        "+"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email",
+        "shop-api-audience"
+      ]
+    },
+    {
+      "clientId": "order-service-client",
+      "name": "Order Service Client Credentials",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "order-client-super-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "shop-api-audience"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@shop.local",
+      "firstName": "Admin",
+      "lastName": "User",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ROLE_ADMIN",
+        "ROLE_USER"
+      ]
+    },
+    {
+      "username": "customer",
+      "enabled": true,
+      "email": "customer@shop.local",
+      "firstName": "Customer",
+      "lastName": "User",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ROLE_USER"
+      ]
+    },
+    {
+      "username": "service-account-order-service-client",
+      "enabled": true,
+      "serviceAccountClientId": "order-service-client",
+      "realmRoles": [
+        "ROLE_SERVICE"
+      ]
+    }
+  ]
+}

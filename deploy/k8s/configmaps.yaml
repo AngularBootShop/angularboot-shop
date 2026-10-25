@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shop-config
+  namespace: shop
+data:
+  SPRING_PROFILES_ACTIVE: "kubernetes"
+  CATALOG_SERVICE_URL: "http://catalog-service.shop.svc.cluster.local:8081"
+  CATALOG_SERVICE_URI: "http://catalog-service.shop.svc.cluster.local:8081"
+  ORDER_SERVICE_URI: "http://order-service.shop.svc.cluster.local:8082"
+  REDIS_HOST: "redis.shop.svc.cluster.local"
+  REDIS_PORT: "6379"
+  KEYCLOAK_ISSUER_URI: "http://keycloak.shop.svc.cluster.local:8180/realms/shop-realm"
+  KEYCLOAK_JWK_SET_URI: "http://keycloak.shop.svc.cluster.local:8180/realms/shop-realm/protocol/openid-connect/certs"
+  KEYCLOAK_TOKEN_URI: "http://keycloak.shop.svc.cluster.local:8180/realms/shop-realm/protocol/openid-connect/token"
+  KEYCLOAK_CLIENT_ID: "order-service-client"
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: "http://jaeger-collector.shop.svc.cluster.local:4318/v1/traces"

@@ -1,0 +1,252 @@
+.page-content {
+  padding: 2.5rem 1.5rem;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.page-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin-top: 0.25rem;
+}
+
+.cart-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .cart-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cart-items-card {
+  padding: 1.5rem;
+}
+
+.items-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.cart-item {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  align-items: center;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.cart-item:last-child {
+  border-bottom: none;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.item-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.item-sku {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.item-price {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.item-quantity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qty-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  transition: background var(--transition-fast);
+}
+
+.qty-btn:hover:not(:disabled) {
+  background: var(--primary);
+}
+
+.qty-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.qty-count {
+  min-width: 24px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.item-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.total-price {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.remove-btn {
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.remove-btn:hover {
+  color: var(--rose);
+  background: var(--rose-bg);
+}
+
+.cart-summary-card {
+  padding: 1.75rem;
+}
+
+.summary-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.free-shipping {
+  color: var(--emerald);
+  font-weight: 700;
+}
+
+.summary-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 1.25rem 0;
+}
+
+.total-row {
+  font-size: 1.15rem;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+}
+
+.total-val {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.btn-full {
+  width: 100%;
+}
+
+.checkout-btn {
+  padding: 0.85rem;
+  font-size: 1rem;
+}
+
+.state-container {
+  text-align: center;
+  padding: 4rem 1.5rem;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.mt-4 {
+  margin-top: 1.5rem;
+}
+
+.confirmation-card {
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.confirmation-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--emerald-bg);
+  color: var(--emerald);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  font-weight: 800;
+  border: 2px solid var(--emerald);
+}
+
+.order-number {
+  color: var(--primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.confirmation-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.error-banner {
+  background: var(--rose-bg);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  color: var(--rose);
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 2rem;
+}

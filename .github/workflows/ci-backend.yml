@@ -1,0 +1,97 @@
+name: Backend CI & Security Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  build-and-test:
+    name: Build, Test & Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Spotless Code Style Check
+        run: mvn spotless:check
+
+      - name: Run SpotBugs Static Analysis
+        run: mvn compile spotbugs:check
+
+      - name: Run Tests, Contract Verification & JaCoCo Coverage Gate
+        run: mvn test
+
+      - name: Upload JaCoCo Coverage Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-reports
+          path: '**/target/site/jacoco/'
+
+      - name: Run Trivy Filesystem & Dependency Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy FS SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-fs-results.sarif'
+
+  container-security:
+    name: Docker Build & Image Vulnerability Scan
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - { name: 'catalog-service', path: 'services/catalog-service' }
+          - { name: 'order-service', path: 'services/order-service' }
+          - { name: 'api-gateway', path: 'services/api-gateway' }
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build Service JAR
+        run: |
+          cd ${{ matrix.service.path }}
+          mvn package -DskipTests
+
+      - name: Build Container Image
+        run: |
+          docker build -t shop/${{ matrix.service.name }}:local ${{ matrix.service.path }}
+
+      - name: Run Trivy Container Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'shop/${{ matrix.service.name }}:local'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0' # Audit without blocking CI in demo

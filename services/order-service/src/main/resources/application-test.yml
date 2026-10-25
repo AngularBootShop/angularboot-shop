@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:order_test_db;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://auth.shop.local/realms/shop-realm
+
+management:
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces

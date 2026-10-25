@@ -1,0 +1,12 @@
+# Global owners
+* @krish
+
+# Backend services
+/services/ @krish
+
+# Frontend
+/frontend/ @krish
+
+# Infrastructure & CI/CD
+/deploy/ @krish
+/.github/ @krish

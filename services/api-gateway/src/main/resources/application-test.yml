@@ -1,0 +1,23 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: api-gateway-test
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/shop-realm
+          jwk-set-uri: http://localhost:8180/realms/shop-realm/protocol/openid-connect/certs
+
+management:
+  tracing:
+    enabled: false
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces

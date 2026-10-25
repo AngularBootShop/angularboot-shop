@@ -1,0 +1,316 @@
+name: shop-stack
+
+services:
+  # ==========================================
+  # Databases & Caching Layer
+  # ==========================================
+  postgres-catalog:
+    image: postgres:16-alpine
+    container_name: postgres-catalog
+    environment:
+      POSTGRES_DB: catalog_db
+      POSTGRES_USER: catalog_user
+      POSTGRES_PASSWORD: catalog_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-catalog-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalog_user -d catalog_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shop-network
+
+  postgres-order:
+    image: postgres:16-alpine
+    container_name: postgres-order
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: order_user
+      POSTGRES_PASSWORD: order_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg-order-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U order_user -d order_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shop-network
+
+  postgres-keycloak:
+    image: postgres:16-alpine
+    container_name: postgres-keycloak
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak_db_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - pg-keycloak-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shop-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: shop-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - shop-network
+
+  # ==========================================
+  # IAM - Keycloak 26.1 (PostgreSQL-backed)
+  # ==========================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1.0
+    container_name: shop-keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres-keycloak
+      KC_DB_URL_PORT: 5432
+      KC_DB_URL_DATABASE: keycloak_db
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak_db_password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin_password
+      KC_HTTP_PORT: 8180
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    volumes:
+      - ../keycloak/shop-realm.json:/opt/keycloak/data/import/shop-realm.json:ro
+    ports:
+      - "8180:8180"
+    depends_on:
+      postgres-keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8180 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - shop-network
+
+  # ==========================================
+  # Observability Stack
+  # ==========================================
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: shop-jaeger
+    ports:
+      - "16686:16686" # UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - shop-network
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: shop-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - shop-network
+
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: shop-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+    ports:
+      - "3100:3100"
+    networks:
+      - shop-network
+
+  promtail:
+    image: grafana/promtail:3.1.0
+    container_name: shop-promtail
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - shop-network
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: shop-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin_password
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - jaeger
+      - loki
+    networks:
+      - shop-network
+
+  # ==========================================
+  # Backend Microservices
+  # ==========================================
+  catalog-service:
+    build:
+      context: ../../services/catalog-service
+      dockerfile: Dockerfile
+    container_name: catalog-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-catalog:5432/catalog_db
+      SPRING_DATASOURCE_USERNAME: catalog_user
+      SPRING_DATASOURCE_PASSWORD: catalog_password
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8180/realms/shop-realm
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8180/realms/shop-realm/protocol/openid-connect/certs
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres-catalog:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health/liveness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 25s
+    networks:
+      - shop-network
+
+  order-service:
+    build:
+      context: ../../services/order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-order:5432/order_db
+      SPRING_DATASOURCE_USERNAME: order_user
+      SPRING_DATASOURCE_PASSWORD: order_password
+      CATALOG_SERVICE_URL: http://catalog-service:8081
+      KEYCLOAK_TOKEN_URI: http://keycloak:8180/realms/shop-realm/protocol/openid-connect/token
+      KEYCLOAK_CLIENT_ID: order-service-client
+      KEYCLOAK_CLIENT_SECRET: order-service-secret
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8180/realms/shop-realm
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8180/realms/shop-realm/protocol/openid-connect/certs
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres-order:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health/liveness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 25s
+    networks:
+      - shop-network
+
+  api-gateway:
+    build:
+      context: ../../services/api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CATALOG_SERVICE_URI: http://catalog-service:8081
+      ORDER_SERVICE_URI: http://order-service:8082
+      KEYCLOAK_ISSUER_URI: http://keycloak:8180/realms/shop-realm
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8180/realms/shop-realm/protocol/openid-connect/certs
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health/liveness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 25s
+    networks:
+      - shop-network
+
+  # ==========================================
+  # Frontend SPA
+  # ==========================================
+  shop-ui:
+    build:
+      context: ../../frontend/shop-ui
+      dockerfile: Dockerfile
+    container_name: shop-ui
+    ports:
+      - "4200:4200"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4200/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - shop-network
+
+networks:
+  shop-network:
+    name: shop-network
+    driver: bridge
+
+volumes:
+  pg-catalog-data:
+  pg-order-data:
+  pg-keycloak-data:
