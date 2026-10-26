@@ -37,7 +37,7 @@
         <logstash-logback.version>8.0</logstash-logback.version>
         <testcontainers.version>1.20.4</testcontainers.version>
         <spotless.version>2.44.3</spotless.version>
-        <jacoco.version>0.8.12</jacoco.version>
+        <jacoco.version>0.8.15</jacoco.version>
         <spotbugs.version>4.9.2.0</spotbugs.version>
     </properties>
 
