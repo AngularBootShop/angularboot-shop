@@ -4,6 +4,17 @@ A complete, production-grade microservice e-commerce system built to Senior Staf
 
 ---
 
+## 📚 Complete System & Component Documentation
+
+| Document | Focus & Contents |
+| :--- | :--- |
+| **[System Architecture Documentation](docs/SYSTEM_DOCUMENTATION.md)** | Full platform topology, zero-trust security perimeter, distributed saga transactions, request-hash idempotency, observability pipeline, and Kubernetes/Compose deployments with Mermaid diagrams. |
+| **[Backend Microservices Documentation](docs/BACKEND_DOCUMENTATION.md)** | Exhaustive technical guide for `api-gateway`, `catalog-service`, and `order-service`, complete Database ERD diagrams, 11 API endpoints with RFC 7807 problem details, and full test matrices. |
+| **[Frontend UI Documentation](docs/FRONTEND_DOCUMENTATION.md)** | Deep dive into `shop-ui` (Angular 19), Angular Signals reactive state management, Keycloak PKCE authentication, OpenAPI code generation, component architecture, and Playwright E2E suites. |
+| **[Architecture Decision Records (ADRs)](docs/adr/)** | 7 foundational architectural decision records covering Gateway, Keycloak PKCE, Flyway, Saga, Observability, Rate Limiting, and Idempotency. |
+
+---
+
 ## 1. System Architecture
 
 ```mermaid
