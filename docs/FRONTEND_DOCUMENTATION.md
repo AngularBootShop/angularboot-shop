@@ -65,9 +65,9 @@ flowchart LR
     end
 
     subgraph Subscribers["UI Subscribers"]
-        TotalItems -.->|Live Badge (1, 2...)| HeaderBadge["Header Cart Badge (.cart-count)"]
-        ItemsSignal -.->|Table Rows| CartTable["Cart Items Table"]
-        TotalAmount -.->|Live Subtotal| SummaryCard["Order Summary Card"]
+        TotalItems -.->|"Live Badge (1, 2...)"| HeaderBadge["Header Cart Badge (.cart-count)"]
+        ItemsSignal -.->|"Table Rows"| CartTable["Cart Items Table"]
+        TotalAmount -.->|"Live Subtotal"| SummaryCard["Order Summary Card"]
     end
 ```
 

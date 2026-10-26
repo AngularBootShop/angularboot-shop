@@ -27,8 +27,8 @@ mkdir -p "${ROOT_DIR}/.data/pg-catalog" "${ROOT_DIR}/.data/pg-order" "${ROOT_DIR
 echo -e "${YELLOW}--> Launching Docker Compose stack...${NC}"
 docker compose -f "${COMPOSE_FILE}" up -d
 
-# 3. Wait for Keycloak and ensure realm is imported
-echo -e "${YELLOW}--> Verifying Keycloak IAM readiness & realm configuration...${NC}"
+# 3. Wait for Keycloak and Loki readiness
+echo -e "${YELLOW}--> Verifying Keycloak IAM & Observability stack readiness...${NC}"
 for i in {1..30}; do
   if curl -s -f "${KEYCLOAK_URL}/realms/shop-realm" > /dev/null 2>&1; then
     echo -e "    ${GREEN}✓ shop-realm is active and ready${NC}"
@@ -45,6 +45,15 @@ for i in {1..30}; do
       -d @"${ROOT_DIR}/deploy/keycloak/shop-realm.json" > /dev/null 2>&1 || true
   fi
   sleep 2
+done
+
+# Wait for Loki readiness
+for i in {1..20}; do
+  if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3100/ready 2>/dev/null || true)" = "200" ]; then
+    echo -e "    ${GREEN}✓ Loki log engine is ready${NC}"
+    break
+  fi
+  sleep 1
 done
 
 # 4. Display live dashboard

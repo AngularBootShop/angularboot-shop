@@ -63,7 +63,14 @@ for svc in "API Gateway:${GATEWAY_URL}/actuator/health/liveness" \
            "Grafana:${GRAFANA_URL}/api/health"; do
   name="${svc%%:*}"
   url="${svc#*:}"
-  status=$(curl -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
+  status="000"
+  for attempt in {1..5}; do
+    status=$(curl -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
+    if [ "$status" -eq 200 ]; then
+      break
+    fi
+    sleep 1
+  done
   if [ "$status" -eq 200 ]; then
     echo -e "  [UP] ${GREEN}${name}${NC} is healthy (${url})"
     pass_count=$((pass_count + 1))

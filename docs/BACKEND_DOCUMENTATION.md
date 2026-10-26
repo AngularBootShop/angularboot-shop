@@ -37,9 +37,9 @@ flowchart TB
         ORD_SAGA --> ORD_CLIENT
     end
 
-    GW_ROUTE -->|/api/v1/products/**| CAT_SEC
-    GW_ROUTE -->|/api/v1/orders/**| ORD_SEC
-    ORD_CLIENT -->|M2M POST /api/v1/internal/** (Bearer ROLE_SERVICE)| CAT_SEC
+    GW_ROUTE -->|"/api/v1/products/**"| CAT_SEC
+    GW_ROUTE -->|"/api/v1/orders/**"| ORD_SEC
+    ORD_CLIENT -->|"M2M POST /api/v1/internal/** (Bearer ROLE_SERVICE)"| CAT_SEC
 ```
 
 ---

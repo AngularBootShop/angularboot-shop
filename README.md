@@ -62,14 +62,14 @@ flowchart TB
         GRAFANA --> PROM & JAEGER & LOKI
     end
 
-    SPA -->|OAuth2 PKCE Login| KC
-    SPA -->|API Requests + JWT + X-Correlation-Id| GW
+    SPA -->|"OAuth2 PKCE Login"| KC
+    SPA -->|"API Requests + JWT + X-Correlation-Id"| GW
 
-    GW -->|Route /api/v1/products/**| CATALOG
-    GW -->|Route /api/v1/orders/**| ORDER
-    GW -.->|BLOCK /api/v1/internal/** (403)| X[Blocked]
+    GW -->|"Route /api/v1/products/**"| CATALOG
+    GW -->|"Route /api/v1/orders/**"| ORDER
+    GW -.->|"BLOCK /api/v1/internal/** [403]"| X["Blocked (HTTP 403)"]
 
-    ORDER -->|Saga: OAuth2 Client Credentials + ROLE_SERVICE\n/api/v1/internal/products/{id}/deduct-stock\n/restore-stock| CATALOG
+    ORDER -->|"Saga: OAuth2 Client Credentials (ROLE_SERVICE)"| CATALOG
 ```
 
 ---

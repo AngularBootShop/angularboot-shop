@@ -53,14 +53,14 @@ flowchart TB
         GRAFANA --> PROM & JAEGER & LOKI
     end
 
-    SPA -->|1. OAuth2 PKCE Authorization Code Flow| KC
-    SPA -->|2. HTTP Requests + JWT + X-Correlation-Id| GW
+    SPA -->|"1. OAuth2 PKCE Authorization Code Flow"| KC
+    SPA -->|"2. HTTP Requests + JWT + X-Correlation-Id"| GW
 
-    GW -->|3. Route /api/v1/products/**| CATALOG
-    GW -->|4. Route /api/v1/orders/**| ORDER
-    GW -.->|5. Prohibited Route: /api/v1/internal/**| BLOCKED[HTTP 403 Forbidden Edge Block]
+    GW -->|"3. Route /api/v1/products/**"| CATALOG
+    GW -->|"4. Route /api/v1/orders/**"| ORDER
+    GW -.->|"5. Prohibited Route: /api/v1/internal/**"| BLOCKED["HTTP 403 Forbidden Edge Block"]
 
-    ORDER -->|6. Distributed Saga: Client Credentials M2M (ROLE_SERVICE)\nPOST /api/v1/internal/products/{id}/deduct-stock\nPOST /api/v1/internal/products/{id}/restore-stock| CATALOG
+    ORDER -->|"6. Distributed Saga: Client Credentials M2M (ROLE_SERVICE)"| CATALOG
 ```
 
 ---
@@ -221,10 +221,10 @@ The platform provides end-to-end telemetry across asynchronous boundaries.
 ```mermaid
 flowchart LR
     subgraph TracingPipeline["Tracing Flow"]
-        ClientReq[HTTP Request] -->|X-Correlation-Id / traceparent| GWTrace[API Gateway Span]
+        ClientReq[HTTP Request] -->|"X-Correlation-Id / traceparent"| GWTrace[API Gateway Span]
         GWTrace --> CatalogSpan[Catalog Service Span]
         GWTrace --> OrderSpan[Order Service Span]
-        OrderSpan -->|M2M HTTP Client| InternalCatalogSpan[Internal Catalog Span]
+        OrderSpan -->|"M2M HTTP Client"| InternalCatalogSpan[Internal Catalog Span]
         CatalogSpan & OrderSpan & GWTrace & InternalCatalogSpan -.->|OTLP Export :4318| JaegerCollector[Jaeger Collector]
     end
 
