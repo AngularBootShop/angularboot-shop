@@ -50,7 +50,7 @@ jobs:
           tar -czf release-dist/shop-ui-dist.tar.gz -C frontend/shop-ui/dist/shop-ui/browser .
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             release-dist/catalog-service.jar
